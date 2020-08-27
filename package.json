@@ -1,0 +1,27 @@
+{
+  "name": "alexa-dice-game",
+  "version": "1.0.0",
+  "description": "Play a dice roll game with Alexa!",
+  "main": "index.js",
+  "scripts": {
+    "build": "mkdir -p dist && rm -f dist/deployPackage.zip && zip -r dist/deployPackage.zip . -x *.git* *.idea* ./dist* .DS_Store",
+    "update-lambda-function": "aws lambda update-function-code --function-name [arn] --zip-file fileb://dist/deployPackage.zip",
+    "deploy": "npm run build && npm run update-lambda-function"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.0.0",
+    "ask-sdk-model": "^1.0.0",
+    "i18next": "^15.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/garrettmmoore/alexa-dice-game.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/garrettmmoore/alexa-dice-game/issues"
+  },
+  "homepage": "https://github.com/garrettmmoore/alexa-dice-game#readme"
+}
