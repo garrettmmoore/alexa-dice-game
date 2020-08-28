@@ -36,64 +36,66 @@ const LaunchRequestHandler = {
       .getResponse();
   },
 };
+const YesIntent = {
   canHandle(handlerInput) {
-    const request = handlerInput.requestEnvelope.request;
-    // checks request type
     return (
-      request.type === 'LaunchRequest' ||
-      (request.type === 'IntentRequest' &&
-        request.intent.name === 'GetNewFactIntent')
+      Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.YesIntent'
     );
   },
   async handle(handlerInput) {
-    const requestAttributes = await handlerInput.attributesManager
-      .getRequestAttributes()
-      .setPersistentAttributes(s3Attributes)
-      .getPersistentAttributes();
+    const { attributesManager, responseBuilder } = handlerInput;
+    const sessionAttributes = attributesManager.getSessionAttributes();
 
-    let s3Attributes = { counter: 10 };
-    await attributesManager;
-    let speechOutput = `Hi there, Hello World! Your saved counter is ${s3Attributes.counter}`;
-    // gets a random fact by assigning an array to the variable
-    // the random item from the array will be selected by the i18next library
-    // the i18next library is set up in the Request Interceptor
-    const randomFact = requestAttributes.t('FACTS');
-    console.log('randomFact', randomFact);
-    // concatenates a standard message with the random fact
+    // randomize dice roll
+    const diceNumber = Math.floor(Math.random() * (7 - 1) + 1);
 
-    const getDynamoAttributes = dynamoDbPersistenceAdapter.getAttributes({
-      tableName: 'Users',
-    });
+    // increment the session if dice number is valid (between 2-6)
+    if (diceNumber !== 1) {
+      sessionAttributes.totalScore += diceNumber;
+      return responseBuilder
+        .speak(
+          `You rolled a ${diceNumber}! Your total score is ${sessionAttributes.totalScore}. Roll again?`
+        )
+        .reprompt('Roll again?')
+        .getResponse();
+    }
 
-    // const getS3Attributes =
-    //   (await attributesManager.getPersistentAttributes()) || {};
-    // console.log('s3Attributes is: ', getS3Attributes);
+    // game is over
+    if (diceNumber === 1) {
+      const finalScore = sessionAttributes.totalScore;
+      // reset totalScore
+      sessionAttributes.totalScore = 0;
+      attributesManager.setSessionAttributes(sessionAttributes);
 
-    const counter = getS3Attributes.hasOwnProperty('counter')
-      ? getS3Attributes.counter
-      : 0;
+      return responseBuilder
+        .speak(
+          'Darn! You rolled a 1 so that is game over. Your final score is ' +
+            finalScore +
+            '. Would you like to play again?'
+        )
+        .reprompt(`Would you like to play again?`)
+        .getResponse();
+    }
+  },
+};
 
-    let currentCount = `Hi there, Hello World! Your counter is ${counter}`;
-
-    const speakOutput =
-      requestAttributes.t('GET_FACT_MESSAGE') +
-      randomFact +
-      'savedCount' +
-      speechOutput +
-      'currentCount:' +
-      currentCount;
-
-    console.log('getDynamoAttributes', getDynamoAttributes);
-
+const NoIntent = {
+  canHandle(handlerInput) {
     return (
-      handlerInput.responseBuilder
-        .speak(speakOutput)
-        // Uncomment the next line if you want to keep the session open so you can
-        // ask for another fact without first re-opening the skill
-        // .reprompt(requestAttributes.t('HELP_REPROMPT'))
-        .withSimpleCard(requestAttributes.t('SKILL_NAME'), randomFact)
-        .getResponse()
+      Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.NoIntent'
     );
+  },
+  async handle(handlerInput) {
+    const { attributesManager } = handlerInput;
+    const sessionAttributes = attributesManager.getSessionAttributes();
+
+    attributesManager.setSessionAttributes(sessionAttributes);
+
+    return handlerInput.responseBuilder
+      .speak('Thanks for playing!')
+      .getResponse();
   },
 };
 
