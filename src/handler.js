@@ -9,24 +9,33 @@
  * permissions and limitations under the License.
  */
 
-// Alexa Dice Skill
+// Start the session
+const LaunchRequestHandler = {
+  canHandle(handlerInput) {
+    return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
+  },
+  async handle(handlerInput) {
+    const attributesManager = handlerInput.attributesManager;
+    const sessionAttributes = attributesManager.getSessionAttributes();
 
-// sets up dependencies
-const Alexa = require('ask-sdk-core');
-const i18n = require('i18next');
-const AWS = require('aws-sdk');
-const persistenceAdapter = require('ask-sdk-s3-persistence-adapter');
-const {
-  DynamoDbPersistenceAdapter,
-} = require('ask-sdk-dynamodb-persistence-adapter');
+    if (Object.keys(sessionAttributes).length === 0) {
+      sessionAttributes.totalScore = 0;
+    }
 
-const dynamoDbPersistenceAdapter = new DynamoDbPersistenceAdapter({
-  tableName: 'Users',
-  partitionKeyName: 'userId',
-});
+    // initialize total score as a sessionAttribute to keep track of score
+    attributesManager.setSessionAttributes(sessionAttributes);
 
-// core functionality for fact skill
-const GetNewFactHandler = {
+    const speechText =
+      'Welcome to Dice Roller! Would you like to roll the dice?';
+    const repromptText =
+      'You can also listen to the top 10 scores. Simply say get top scores.';
+
+    return handlerInput.responseBuilder
+      .speak(speechText)
+      .reprompt(repromptText)
+      .getResponse();
+  },
+};
   canHandle(handlerInput) {
     const request = handlerInput.requestEnvelope.request;
     // checks request type
