@@ -117,3 +117,5 @@ dist/deployPackage.zip
 
 # System files
 .DS_Store
+
+.vscode
