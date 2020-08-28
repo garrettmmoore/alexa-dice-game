@@ -1,13 +1,6 @@
-/*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0 (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located: http://www.apache.org/licenses/LICENSE-2.0
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- */
+const Alexa = require('ask-sdk');
+const dbUtility = require('./helpers/dbUtility');
+const dynamoDBTableName = 'GameScores';
 
 // Start the session
 const LaunchRequestHandler = {
@@ -36,6 +29,7 @@ const LaunchRequestHandler = {
       .getResponse();
   },
 };
+
 const YesIntent = {
   canHandle(handlerInput) {
     return (
@@ -99,43 +93,41 @@ const NoIntent = {
   },
 };
 
-// core functionality for GetNewDiceRoll
-const GetNewDiceRollHandler = {
+const AddUserIntentHandler = {
   canHandle(handlerInput) {
-    const request = handlerInput.requestEnvelope.request;
-    // checks request type
     return (
-      request.type === 'LaunchRequest' ||
-      (request.type === 'IntentRequest' &&
-        request.intent.name === 'GetNewDiceRollIntent')
+      handlerInput.requestEnvelope.request.type === 'IntentRequest' &&
+      handlerInput.requestEnvelope.request.intent.name === 'AddUserIntent'
     );
   },
-  handle(handlerInput) {
-    console.log('hit GetNewDiceRollHandler!');
-    const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
-    const getDynamoAttributes = dynamoDbPersistenceAdapter.getAttributes({
-      tableName: 'Users',
-    });
+  async handle(handlerInput) {
+    const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+    const { responseBuilder } = handlerInput;
+    // get the user's unique id
+    const userID = handlerInput.requestEnvelope.context.System.user.userId;
+    const slots = handlerInput.requestEnvelope.request.intent.slots;
+    const firstName = slots.FirstName.value;
 
-    console.log('getDynamoAttributes', getDynamoAttributes);
-    // gets a random fact by assigning an array to the variable
-    // the random item from the array will be selected by the i18next library
-    // the i18next library is set up in the Request Interceptor
-    const randomDiceRoll = requestAttributes.t('DICE');
-    console.log(randomDiceRoll);
-    // concatenates a standard message with the DICE_ROLL
-    const speakOutput =
-      requestAttributes.t('GET_DICE_MESSAGE') + randomDiceRoll;
+    // add the user's score to the database
+    return dbUtility
+      .addUserScore(firstName, userID, sessionAttributes.totalScore)
+      .then((data) => {
+        const speechText =
+          'If you would like to add your name to the top score list, please say your name.';
 
-    return (
-      handlerInput.responseBuilder
-        .speak(speakOutput)
-        // Uncomment the next line if you want to keep the session open so you can
-        // ask for another fact without first re-opening the skill
-        // .reprompt(requestAttributes.t('HELP_REPROMPT'))
-        .withSimpleCard(requestAttributes.t('SKILL_NAME'), randomDiceRoll)
-        .getResponse()
-    );
+        return responseBuilder
+          .speak(speechText)
+          .reprompt(
+            'If you would like to add your name to the top score list, please say your name.'
+          )
+          .getResponse();
+      })
+      .catch((err) => {
+        console.log('Error occured while saving user', err);
+        const speechText =
+          'Unable to save your information right now. Please try again.';
+        return responseBuilder.speak(speechText).getResponse();
+      });
   },
 };
 
