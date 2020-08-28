@@ -1,0 +1,81 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "ultimate dice roller",
+      "intents": [
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.YesIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": []
+        },
+        {
+          "name": "GetTopScoresIntent",
+          "slots": [],
+          "samples": ["get top scores", "get top ten scores"]
+        },
+        {
+          "name": "AddUserIntent",
+          "slots": [
+            {
+              "name": "FirstName",
+              "type": "AMAZON.FirstName",
+              "samples": ["{FirstName}"]
+            }
+          ],
+          "samples": ["add {FirstName}", "add"]
+        }
+      ],
+      "types": []
+    },
+    "dialog": {
+      "intents": [
+        {
+          "name": "AddUserIntent",
+          "confirmationRequired": false,
+          "prompts": {},
+          "slots": [
+            {
+              "name": "FirstName",
+              "type": "AMAZON.FirstName",
+              "confirmationRequired": false,
+              "elicitationRequired": true,
+              "prompts": {
+                "elicitation": "Slot.883929138"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "prompts": [
+      {
+        "id": "Slot.883929138",
+        "variations": [
+          {
+            "type": "PlainText",
+            "value": "What is your first name?"
+          }
+        ]
+      }
+    ]
+  }
+}
