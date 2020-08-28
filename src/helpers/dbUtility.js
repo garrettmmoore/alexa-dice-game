@@ -27,3 +27,33 @@ dbUtility.prototype.addUserScore = (firstName, userID, score) => {
     });
   });
 };
+
+dbUtility.prototype.getTopScores = () => {
+  return new Promise((resolve, reject) => {
+    const params = {
+      TableName: 'GameScores',
+      IndexName: 'GameTitleIndex',
+      KeyConditionExpression: 'GameTitle = :v_title',
+      ExpressionAttributeValues: {
+        ':v_title': { S: gameTitle },
+      },
+      ProjectionExpression: 'UserId, TopScore',
+      ScanIndexForward: false,
+    };
+
+    dynamodb.query(params, (err, data) => {
+      console.log('getTopScores data', data);
+      if (err) {
+        console.error(
+          'Unable to read item. Error JSON:',
+          JSON.stringify(err, null, 2)
+        );
+        return reject(JSON.stringify(err, null, 2));
+      }
+      console.log('GetTopScores succeeded:', JSON.stringify(data, null, 2));
+      resolve(data.Items);
+    });
+  });
+};
+
+module.exports = new dbUtility();
