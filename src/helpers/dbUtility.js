@@ -1,12 +1,11 @@
-var AWS = require('aws-sdk');
-AWS.config.update({ region: 'us-east-1' });
-var dbUtility = function () {};
-var dynamodb = new AWS.DynamoDB();
-var docClient = new AWS.DynamoDB.DocumentClient();
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB();
+const docClient = new AWS.DynamoDB.DocumentClient();
 const tableName = 'GameScores';
 const gameTitle = 'Dice Roller';
 
-dbUtility.prototype.addUserScore = (firstName, userID, score) => {
+// Add user firstName, userID, and score to DynamoDB
+const dbAddUserScore = (firstName, userID, score) => {
   return new Promise((resolve, reject) => {
     const params = {
       TableName: tableName,
@@ -19,16 +18,15 @@ dbUtility.prototype.addUserScore = (firstName, userID, score) => {
     };
     docClient.put(params, (err, data) => {
       if (err) {
-        console.log('Unable to insert (addUserScore)=>', JSON.stringify(err));
-        return reject('Unable to insert');
+        return reject('Unable to insert user score');
       }
-      console.log('AddUserScore succeeded!, ', JSON.stringify(data));
       resolve(data);
     });
   });
 };
 
-dbUtility.prototype.getTopScores = () => {
+// Query the top 10 users from the leaderboard
+const dbGetTopScores = () => {
   return new Promise((resolve, reject) => {
     const params = {
       TableName: 'GameScores',
@@ -42,7 +40,6 @@ dbUtility.prototype.getTopScores = () => {
     };
 
     dynamodb.query(params, (err, data) => {
-      console.log('getTopScores data', data);
       if (err) {
         console.error(
           'Unable to read item. Error JSON:',
@@ -50,10 +47,9 @@ dbUtility.prototype.getTopScores = () => {
         );
         return reject(JSON.stringify(err, null, 2));
       }
-      console.log('GetTopScores succeeded:', JSON.stringify(data, null, 2));
       resolve(data.Items);
     });
   });
 };
 
-module.exports = new dbUtility();
+module.exports = { dbAddUserScore, dbGetTopScores };
