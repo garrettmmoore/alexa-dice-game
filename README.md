@@ -14,7 +14,7 @@ Play a dice rolling game with Alexa to see if the total sum of all your rolls ca
 - [x] The user's total score is persisted throughout the game session.
 - [x] The user has the option to upload their high score to DynamoDB for permanent persistence
 
-## Play
+## How to Play the Game
 
 - To open the game say: "Alexa, `open Ultimate Dice Roller.`"
 - To play the game, when Alexa asks if you want to roll the dice say: `Yes.`
@@ -26,12 +26,12 @@ Play a dice rolling game with Alexa to see if the total sum of all your rolls ca
 
 ## File Structure
 
-| Syntax            | Description                                                                      | File                                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Handlers          | Methods that specify Alexa commands                                              | [src/handler.js](https://github.com/garrettmmoore/alexa-dice-game/blob/master/src/handler.js)                     |
-| Interaction Model | Define the Voice interface by mapping users' spoken input to the intent handlers | [models/en-US.json](https://github.com/garrettmmoore/alexa-dice-game/blob/master/models/en-US.json)               |
-| DynamoDB Helper   | Method to handle all calls to DynamoDB                                           | [src/helpers/dbUtility.js](https://github.com/garrettmmoore/alexa-dice-game/blob/master/src/helpers/dbUtility.js) |
-| Skills Manifest   | Skills for Alexa                                                                 | [skill.json](https://github.com/garrettmmoore/alexa-dice-game/blob/master/skill.json)                             |
+| Syntax            | Description                                                                          | File                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Handlers          | Recognize each incoming request that Alexa sends and return the appropriate response | [src/handler.js](https://github.com/garrettmmoore/alexa-dice-game/blob/master/src/handler.js)                     |
+| Interaction Model | Define the Voice interface by mapping users' spoken input to the intent handlers     | [models/en-US.json](https://github.com/garrettmmoore/alexa-dice-game/blob/master/models/en-US.json)               |
+| DynamoDB Helper   | Method to handle all calls to DynamoDB                                               | [src/helpers/dbUtility.js](https://github.com/garrettmmoore/alexa-dice-game/blob/master/src/helpers/dbUtility.js) |
+| Skills Manifest   | Provides Alexa with metadata for the skill                                           | [skill.json](https://github.com/garrettmmoore/alexa-dice-game/blob/master/skill.json)                             |
 
 ## DynamoDB Approach
 
