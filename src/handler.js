@@ -1,6 +1,7 @@
 const Alexa = require('ask-sdk');
-const dbUtility = require('./helpers/dbUtility');
+const { dbAddUserScore, dbGetTopScores } = require('./helpers/dbUtility');
 const dynamoDBTableName = 'GameScores';
+const LocalizationInterceptor = require('./helpers/interceptor.js');
 
 // Start the session
 const LaunchRequestHandler = {
@@ -8,28 +9,27 @@ const LaunchRequestHandler = {
     return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
   },
   async handle(handlerInput) {
-    const attributesManager = handlerInput.attributesManager;
+    const { attributesManager, responseBuilder } = handlerInput;
     const sessionAttributes = attributesManager.getSessionAttributes();
+    const requestAttributes = attributesManager.getRequestAttributes();
+    const speechText = requestAttributes.t('LAUNCH_MESSAGE');
+    const repromptText = requestAttributes.t('LAUNCH_REPROMPT');
 
     if (Object.keys(sessionAttributes).length === 0) {
       sessionAttributes.totalScore = 0;
+      sessionAttributes.previousScore = 0;
     }
 
-    // initialize total score as a sessionAttribute to keep track of score
     attributesManager.setSessionAttributes(sessionAttributes);
 
-    const speechText =
-      'Welcome to Dice Roller! Would you like to roll the dice?';
-    const repromptText =
-      'You can also listen to the top 10 scores. Simply say get top scores.';
-
-    return handlerInput.responseBuilder
+    return responseBuilder
       .speak(speechText)
       .reprompt(repromptText)
       .getResponse();
   },
 };
 
+// Roll the dice and keep track of total score
 const YesIntent = {
   canHandle(handlerInput) {
     return (
@@ -40,40 +40,46 @@ const YesIntent = {
   async handle(handlerInput) {
     const { attributesManager, responseBuilder } = handlerInput;
     const sessionAttributes = attributesManager.getSessionAttributes();
+    const requestAttributes = attributesManager.getRequestAttributes();
+    const randomDiceNumber = Math.floor(Math.random() * (7 - 1) + 1);
 
-    // randomize dice roll
-    const diceNumber = Math.floor(Math.random() * (7 - 1) + 1);
+    if (randomDiceNumber !== 1) {
+      sessionAttributes.totalScore += randomDiceNumber;
 
-    // increment the session if dice number is valid (between 2-6)
-    if (diceNumber !== 1) {
-      sessionAttributes.totalScore += diceNumber;
+      const speechText = `You rolled a ${randomDiceNumber}! Your total score is ${sessionAttributes.totalScore}. Roll again?`;
+      const repromptText = requestAttributes.t('ROLL_REPROMPT');
+
+      // increment the session if dice number is valid (between 2-6)
       return responseBuilder
-        .speak(
-          `You rolled a ${diceNumber}! Your total score is ${sessionAttributes.totalScore}. Roll again?`
-        )
-        .reprompt('Roll again?')
+        .speak(speechText)
+        .reprompt(repromptText)
         .getResponse();
     }
 
     // game is over
-    if (diceNumber === 1) {
+    if (randomDiceNumber == 1) {
+      // store total score before the value is reset
       const finalScore = sessionAttributes.totalScore;
-      // reset totalScore
+
+      speechText = `Darn! You rolled a 1 so that's game over. Your final score is ${finalScore}. You can also say, add me to the leaderboard. Otherwise, would you like to start a new game? `;
+
+      repromptText = requestAttributes.t('ROLL_REPROMPT_FAIL');
+
+      // set previousScore in session state to reference when saving the user
+      sessionAttributes.previousScore = finalScore;
+      // reset totalscore
       sessionAttributes.totalScore = 0;
       attributesManager.setSessionAttributes(sessionAttributes);
 
       return responseBuilder
-        .speak(
-          'Darn! You rolled a 1 so that is game over. Your final score is ' +
-            finalScore +
-            '. Would you like to play again?'
-        )
-        .reprompt(`Would you like to play again?`)
+        .speak(speechText)
+        .reprompt(repromptText)
         .getResponse();
     }
   },
 };
 
+// Exit the game
 const NoIntent = {
   canHandle(handlerInput) {
     return (
@@ -82,17 +88,18 @@ const NoIntent = {
     );
   },
   async handle(handlerInput) {
-    const { attributesManager } = handlerInput;
+    const { attributesManager, responseBuilder } = handlerInput;
     const sessionAttributes = attributesManager.getSessionAttributes();
+    const requestAttributes = attributesManager.getRequestAttributes();
+    const speechText = requestAttributes.t('NO_MESSAGE');
 
     attributesManager.setSessionAttributes(sessionAttributes);
 
-    return handlerInput.responseBuilder
-      .speak('Thanks for playing!')
-      .getResponse();
+    return responseBuilder.speak(speechText).getResponse();
   },
 };
 
+// Add User information to DynamoDB
 const AddUserIntentHandler = {
   canHandle(handlerInput) {
     return (
@@ -101,36 +108,36 @@ const AddUserIntentHandler = {
     );
   },
   async handle(handlerInput) {
-    const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-    const { responseBuilder } = handlerInput;
-    // get the user's unique id
+    const { responseBuilder, attributesManager } = handlerInput;
+    const sessionAttributes = attributesManager.getSessionAttributes();
+    const requestAttributes = attributesManager.getRequestAttributes();
     const userID = handlerInput.requestEnvelope.context.System.user.userId;
     const slots = handlerInput.requestEnvelope.request.intent.slots;
     const firstName = slots.FirstName.value;
+    const speechText = requestAttributes.t('ADD_USER_MESSAGE');
+    const repromptText = requestAttributes.t('ADD_USER_REPROMPT');
+    const currentScore =
+      sessionAttributes.totalScore == 0
+        ? sessionAttributes.previousScore
+        : sessionAttributes.totalScore;
 
-    // add the user's score to the database
-    return dbUtility
-      .addUserScore(firstName, userID, sessionAttributes.totalScore)
+    // db helper to save the user's
+    return dbAddUserScore(firstName, userID, currentScore)
       .then((data) => {
-        const speechText =
-          'If you would like to add your name to the top score list, please say your name.';
-
         return responseBuilder
           .speak(speechText)
-          .reprompt(
-            'If you would like to add your name to the top score list, please say your name.'
-          )
+          .reprompt(repromptText)
           .getResponse();
       })
       .catch((err) => {
-        console.log('Error occured while saving user', err);
-        const speechText =
-          'Unable to save your information right now. Please try again.';
-        return responseBuilder.speak(speechText).getResponse();
+        const errorText = requestAttributes.t('ADD_USER_ERROR');
+        console.log('Error occured while saving user: ', err);
+        return responseBuilder.speak(errorText).getResponse();
       });
   },
 };
 
+// Query the db for the top 10 scores
 const GetTopScoresIntentHandler = {
   canHandle(handlerInput) {
     return (
@@ -139,32 +146,35 @@ const GetTopScoresIntentHandler = {
     );
   },
   async handle(handlerInput) {
-    const { responseBuilder } = handlerInput;
+    const { attributesManager, responseBuilder } = handlerInput;
+    const requestAttributes = attributesManager.getRequestAttributes();
+    let speechText = 'The top ten scores are ';
+    const repromptText = requestAttributes.t('GET_TOP_SCORES_REPROMPT');
 
-    return dbUtility
-      .getTopScores()
+    return dbGetTopScores()
       .then((data) => {
-        let speechText = 'The top ten scores are ';
-        if (data.length == 0) {
-          speechText =
-            'Sorry, there are no top scores yet. Play to be the first!';
+        if (data.length === 0) {
+          speechText = requestAttributes.t('GET_TOP_SCORES_EMPTY');
         } else {
           const scores = [];
-          data.map((e) => {
-            const topScore = e['TopScore']['N'];
+          // get the top 10 scores an
+          data.map((user) => {
+            const topScore = user['TopScore']['N'];
             scores.push(`${topScore}`);
           });
 
           speechText += scores.join(', ');
         }
+
         return responseBuilder
           .speak(speechText)
-          .reprompt('Would you like to see the high scores again?')
+          .reprompt(repromptText)
           .getResponse();
       })
       .catch((err) => {
-        const speechText = 'Unable to get the top scores. Please try again.';
-        return responseBuilder.speak(speechText).getResponse();
+        const errorText = requestAttributes.t('GET_TOP_SCORES_ERROR');
+        console.log('Unable to get top scores: ', err);
+        return responseBuilder.speak(errorText).getResponse();
       });
   },
 };
@@ -177,29 +187,31 @@ const HelpIntentHandler = {
     );
   },
   handle(handlerInput) {
-    const speechText = 'Would you like to start a game?';
-
-    return handlerInput.responseBuilder
+    const { attributesManager, responseBuilder } = handlerInput;
+    const requestAttributes = attributesManager.getRequestAttributes();
+    const speechText = requestAttributes.t('HELP_MESSAGE');
+    const repromptText = requestAttributes.t('HELP_REPROMPT');
+    return responseBuilder
       .speak(speechText)
-      .reprompt(speechText)
+      .reprompt(repromptText)
       .getResponse();
   },
 };
 
 const CancelAndStopIntentHandler = {
   canHandle(handlerInput) {
+    const inputRequest = handlerInput.requestEnvelope.request;
     return (
-      handlerInput.requestEnvelope.request.type === 'IntentRequest' &&
-      (handlerInput.requestEnvelope.request.intent.name ===
-        'AMAZON.CancelIntent' ||
-        handlerInput.requestEnvelope.request.intent.name ===
-          'AMAZON.StopIntent')
+      inputRequest.type === 'IntentRequest' &&
+      (inputRequest.intent.name === 'AMAZON.CancelIntent' ||
+        inputRequest.intent.name === 'AMAZON.StopIntent')
     );
   },
   handle(handlerInput) {
-    const speechText = 'See you later Alligator!';
-
-    return handlerInput.responseBuilder.speak(speechText).getResponse();
+    const { attributesManager, responseBuilder } = handlerInput;
+    const requestAttributes = attributesManager.getRequestAttributes();
+    const speechText = requestAttributes.t('EXIT_MESSAGE');
+    return responseBuilder.speak(speechText).getResponse();
   },
 };
 
@@ -208,11 +220,9 @@ const SessionEndedRequestHandler = {
     return handlerInput.requestEnvelope.request.type === 'SessionEndedRequest';
   },
   handle(handlerInput) {
-    console.log(
-      `Session ended with reason: ${handlerInput.requestEnvelope.request.reason}`
-    );
-
-    return handlerInput.responseBuilder.getResponse();
+    const { responseBuilder } = handlerInput;
+    console.log(`SessionEnded: ${handlerInput.requestEnvelope.request.reason}`);
+    return responseBuilder.getResponse();
   },
 };
 
@@ -221,28 +231,28 @@ const ErrorHandler = {
     return true;
   },
   handle(handlerInput, error) {
+    const { responseBuilder } = handlerInput;
+    const speechText = 'Sorry, I didnt quite get that. Please say again';
     console.log(`Error handled: ${error.message}`);
-
-    return handlerInput.responseBuilder
-      .speak("Sorry, I didn't quite get that. Please say again.")
-      .reprompt("Sorry, I didn't quite get that. Please say again.")
-      .getResponse();
+    return responseBuilder.speak(speechText).reprompt(speechText).getResponse();
   },
 };
 
+// contains helper functions to build a CustomSkill with dynamoDB configuration
 const skillBuilder = Alexa.SkillBuilders.standard();
 
 exports.handler = skillBuilder
   .addRequestHandlers(
     LaunchRequestHandler,
+    SessionEndedRequestHandler,
+    HelpIntentHandler,
     YesIntent,
     NoIntent,
     AddUserIntentHandler,
     GetTopScoresIntentHandler,
-    HelpIntentHandler,
-    CancelAndStopIntentHandler,
-    SessionEndedRequestHandler
+    CancelAndStopIntentHandler
   )
+  .addRequestInterceptors(LocalizationInterceptor)
   .addErrorHandlers(ErrorHandler)
   .withTableName(dynamoDBTableName)
   .withAutoCreateTable(true)

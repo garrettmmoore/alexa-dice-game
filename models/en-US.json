@@ -28,11 +28,6 @@
           "samples": []
         },
         {
-          "name": "GetTopScoresIntent",
-          "slots": [],
-          "samples": ["get top scores", "get top ten scores"]
-        },
-        {
           "name": "AddUserIntent",
           "slots": [
             {
@@ -41,7 +36,27 @@
               "samples": ["{FirstName}"]
             }
           ],
-          "samples": ["add {FirstName}", "add"]
+          "samples": [
+            "{FirstName}",
+            "My name is {FirstName}",
+            "add {FirstName}",
+            "add",
+            "Add me to the leaderboard",
+            "Add me"
+          ]
+        },
+        {
+          "name": "GetTopScoresIntent",
+          "slots": [],
+          "samples": [
+            "get top scores",
+            "get top ten scores",
+            "top scores",
+            "show me the top scores",
+            "show top scores",
+            "show high scores",
+            "get high scores"
+          ]
         }
       ],
       "types": []
