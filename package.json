@@ -12,7 +12,7 @@
     "ask-sdk": "^2.9.0",
     "ask-sdk-core": "^2.0.0",
     "ask-sdk-model": "^1.0.0",
-    "aws-sdk": "^2.741.0",
+    "aws-sdk": "^2.1354.0",
     "i18next": "^15.0.5"
   },
   "repository": {
